@@ -4,6 +4,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from slugify import slugify
+
 from panopto.panopto_folders import PanoptoFolders
 from panopto.panopto_sessions import PanoptoSessions
 from panopto.panopto_oauth2 import PanoptoOAuth2
@@ -85,7 +87,7 @@ class PanoptoDownloader:
             logging.info(f"Downloading session: {s['Name']} ({session_count} of {len(session_list)})")  # noqa: E501
             logging.debug(f"Session's download URL: {download_url}")
 
-            full_path = os.path.join(path, s['Name'] + '.mp4')
+            full_path = os.path.join(path, slugify(s['Name']) + '.mp4')
             try:
                 await self.panopto_sessions.download_session(download_url,
                                                              full_path,
