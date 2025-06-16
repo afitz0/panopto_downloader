@@ -14,14 +14,20 @@ SKIP_FOLDERS = ['Panopto Workshop - 9/15/2014']
 
 async def main():
     init_logger()
-    
+
     logging.info("Starting Panopto downloader.")
     downloader = PanoptoDownloader(credentials_file=CREDS_FILE,
                                    panopto_server=SERVER,
                                    download_destination=DOWNLOAD_DESTINATION,
                                    exclude_folders=SKIP_FOLDERS)
 
-    await downloader.download_all_from_root()
+    try:
+        await downloader.download_all_from_root()
+    except asyncio.exceptions.CancelledError:
+        logging.warning("Download interrupted by user.")
+    finally:
+        logging.debug("Closing panopto downloader client.")
+        await downloader.close()
 
 
 def init_logger(level: int = logging.INFO) -> None:

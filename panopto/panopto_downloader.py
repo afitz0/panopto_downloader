@@ -98,3 +98,12 @@ class PanoptoDownloader:
         sub_folders = await self.panopto_folders.get_children(folder['Id'])
         for folder in sub_folders:
             await self.download_sessions_in_folder(folder)
+
+    async def close(self) -> None:
+        """Close the Panopto client connection."""
+        if self.panopto_client:
+            await self.panopto_folders.close()
+            await self.panopto_sessions.close()
+            logging.debug("Panopto client connection closed.")
+        else:
+            logging.warning("No Panopto client to close.")

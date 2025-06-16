@@ -101,16 +101,16 @@ class PanoptoSessions(PanoptoClient):
                 raise PermissionError('Failed to get authentication cookie')
 
         if local_size_match and os.path.exists(destination):
-            logging.info("Checking if local file size matches server file size")  # noqa: E501
+            logging.debug("Checking if local file size matches server file size")  # noqa: E501
             headers = await self.get_session_headers(download_url)
             if 'Content-Length' in headers:
                 server_size = int(headers['Content-Length'])
                 local_size = os.path.getsize(destination)
                 if local_size == server_size:
-                    logging.info("File already downloaded (local size == Content-Length), skipping")  # noqa: E501
+                    logging.debug("File already downloaded (local size == Content-Length), skipping")  # noqa: E501
                     return
                 else:
-                    logging.info("File size does not match, downloading")
+                    logging.debug("File size does not match, downloading")
 
         logging.info(f"Downloading {download_url} to {destination}")
         if logging.root.isEnabledFor(logging.DEBUG):
