@@ -3,8 +3,7 @@ import logging
 
 from pathlib import Path
 from typing import Any
-
-from slugify import slugify
+from pathvalidate import sanitize_filename
 
 from panopto.panopto_folders import PanoptoFolders
 from panopto.panopto_sessions import PanoptoSessions
@@ -62,7 +61,7 @@ class PanoptoDownloader:
         its children folders. A directory tree will be created rooted in
         destination_dir starting with this folder's name and then matching the
         Panopto structure from there.
-        
+
         Panopto folder names containing slashes will have those slashes
         replaced with dashes in the local directory structure.
         '''
@@ -72,8 +71,7 @@ class PanoptoDownloader:
 
         logging.info(f"Downloading all sessions in folder '{folder['Name']}'.")
 
-        folder['Name'] = folder['Name'].replace('/', '-')
-        folder['Name'] = folder['Name'].replace('\\', '-')
+        folder['Name'] = sanitize_filename(folder['Name'])
         path = os.path.join(self.download_path, folder['Name'])
         Path(path).mkdir(exist_ok=True)
 
@@ -87,7 +85,8 @@ class PanoptoDownloader:
             logging.info(f"Downloading session: {s['Name']} ({session_count} of {len(session_list)})")  # noqa: E501
             logging.debug(f"Session's download URL: {download_url}")
 
-            full_path = os.path.join(path, slugify(s['Name']) + '.mp4')
+            session_name = sanitize_filename(s['Name']) + '.mp4'
+            full_path = os.path.join(path, session_name)
             try:
                 await self.panopto_sessions.download_session(download_url,
                                                              full_path,
