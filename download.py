@@ -23,6 +23,7 @@ async def main():
 
     try:
         await downloader.download_all_from_root()
+        # await downloader.print_folder_structure()
     except asyncio.exceptions.CancelledError:
         logging.warning("Download interrupted by user.")
     finally:

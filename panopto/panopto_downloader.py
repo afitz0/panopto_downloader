@@ -39,7 +39,7 @@ class PanoptoDownloader:
         logging.info("Getting root folders for authenticated user.")
 
         results = await self.panopto_folders.search_folders('*')
-        self.root_folders = []
+        self.root_folders: list[dict[Any, Any]] = []
         for f in results:
             if f['ParentFolder'] is None:
                 self.root_folders.append(f)
@@ -48,14 +48,37 @@ class PanoptoDownloader:
         return self.root_folders
 
     async def download_all_from_root(self) -> None:
-        if not hasattr(self, 'root_folders') or self.root_folders is None:
+        if not hasattr(self, 'root_folders'):
             await self.get_root_folders()
 
         for folder in self.root_folders:
-            await self.download_sessions_in_folder(folder)
+            await self.download_sessions_in_folder(folder, self.download_path)
+            
+    async def print_folder_structure(self) -> None:
+        '''
+        Prints the folder structure of the authenticated user's Panopto account.
+        This is useful for debugging and understanding the hierarchy of folders.
+        '''
+        if not hasattr(self, 'root_folders'):
+            await self.get_root_folders()
+
+        for folder in self.root_folders:
+            logging.info(f"Folder: {folder['Name']} (ID: {folder['Id']})")
+            await self.print_subfolders(folder, 1)
+            
+    async def print_subfolders(self, folder: dict[str, str], level: int) -> None:
+        '''
+        Recursively prints the subfolders of a given folder.
+        This is used by print_folder_structure to display the hierarchy.
+        '''
+        sub_folders = await self.panopto_folders.get_children(folder['Id'])
+        for child in sub_folders:
+            logging.info(f"{' ' * (level * 2)}- {child['Name']} (ID: {child['Id']})")
+            await self.print_subfolders(child, level + 1)
 
     async def download_sessions_in_folder(self,
-                                          folder: dict[str, str]) -> None:
+                                          folder: dict[str, str],
+                                          root_path: str) -> None:
         '''
         Recursively downloads all known video files from the given folder and
         its children folders. A directory tree will be created rooted in
@@ -69,11 +92,12 @@ class PanoptoDownloader:
             logging.debug(f"Skipping excluded folder '{folder['Name']}'")
             return
 
-        logging.info(f"Downloading all sessions in folder '{folder['Name']}'.")
-
         folder['Name'] = sanitize_filename(folder['Name'])
-        path = os.path.join(self.download_path, folder['Name'])
+        path = os.path.join(root_path, folder['Name'])
         Path(path).mkdir(exist_ok=True)
+
+        logging.info("Downloading all sessions in folder " +
+                     f"'{folder['Name']}' to '{path}'.")
 
         session_list = await self.panopto_folders.get_sessions(folder['Id'])
         session_count = 0
@@ -82,22 +106,25 @@ class PanoptoDownloader:
             s = await self.panopto_sessions.get_session(session['Id'])
             download_url = s['Urls']['DownloadUrl']
 
-            logging.info(f"Downloading session: {s['Name']} ({session_count} of {len(session_list)})")  # noqa: E501
+            logging.info(f"Downloading session: {s['Name']} " +
+                         f"({session_count} of {len(session_list)}).")
             logging.debug(f"Session's download URL: {download_url}")
 
             session_name = sanitize_filename(s['Name']) + '.mp4'
             full_path = os.path.join(path, session_name)
             try:
-                await self.panopto_sessions.download_session(download_url,
-                                                             full_path,
-                                                             local_size_match=True)
+                await self.panopto_sessions.download_session(
+                    download_url,
+                    full_path,
+                    local_size_match=True
+                )
             except PermissionError as e:
                 logging.error(f"Permission error: {e}")
                 continue
 
         sub_folders = await self.panopto_folders.get_children(folder['Id'])
-        for folder in sub_folders:
-            await self.download_sessions_in_folder(folder)
+        for child in sub_folders:
+            await self.download_sessions_in_folder(child, path)
 
     async def close(self) -> None:
         """Close the Panopto client connection."""
